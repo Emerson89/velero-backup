@@ -1,0 +1,29 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: backup
+  namespace: velero
+spec:
+  schedule: 0 3 * * *
+  template:
+    includedNamespaces:
+    - '*'
+    excludedNamespaces:                
+      - cert-manager                                       
+      - default                                                 
+      - ingress-nginx                 
+      - kube-node-lease               
+      - kube-public                   
+      - kube-system                   
+      - velero  
+    includedResources:
+    - '*'
+    excludedResources:
+    - storageclasses.storage.k8s.io
+    - PersistentVolume
+    - PersistentVolumeClaim
+    - VolumeAttachment
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+    ttl: 720h
