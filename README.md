@@ -10,7 +10,52 @@ tar -zxvf velero-v1.8.1-linux-amd64.tar.gz -C /usr/local/bin --strip-components=
 ```
 chmod +x /usr/local/bin/velero
 ```
+## Create the IAM user:
 
+velero
+
+## Anexe políticas para dar ao velero as permissões necessárias:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeVolumes",
+                "ec2:DescribeSnapshots",
+                "ec2:CreateTags",
+                "ec2:CreateVolume",
+                "ec2:CreateSnapshot",
+                "ec2:DeleteSnapshot"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:DeleteObject",
+                "s3:PutObject",
+                "s3:AbortMultipartUpload",
+                "s3:ListMultipartUploadParts"
+            ],
+            "Resource": [
+                "arn:aws:s3:::${BUCKET}/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::${BUCKET}"
+            ]
+        }
+    ]
+}
+```
 ## Crie credentials file
 
 velero-credentials.txt
@@ -27,7 +72,7 @@ helm repo add vmware-tanzu https://vmware-tanzu.github.io/helm-charts
 ```
 helm install velero vmware-tanzu/velero \
 --namespace velero --create-namespace \
---set-file 'credentials.secretContents.cloud=/PATHCredentials/velero-credentials.txt' \
+--set-file 'credentials.secretContents.cloud=/PATHFULL/velero-credentials.txt' \
 --set 'configuration.provider=aws' \
 --set 'configuration.backupStorageLocation.bucket=s3-name-bucket' \
 --set 'configuration.backupStorageLocation.config.region=us-east-1' \
@@ -37,6 +82,16 @@ helm install velero vmware-tanzu/velero \
 --set 'initContainers[0].image=velero/velero-plugin-for-aws' \
 --set 'initContainers[0].volumeMounts[0].mountPath=/target' \
 --set 'initContainers[0].volumeMounts[0].name=plugins'
+```
+## Install used velero
+```
+velero install \
+    --provider aws \
+    --plugins velero/velero-plugin-for-aws:v1.6.0 \
+    --bucket BUCKET-NAME \
+    --backup-location-config region=REGION \
+    --snapshot-location-config region=REGION \
+    --secret-file ./credentials-velero
 ```
 ```
 kubectl get deployment/velero -n velero
