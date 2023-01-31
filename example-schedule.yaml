@@ -12,17 +12,11 @@ spec:
       - cert-manager                                       
       - default                                                 
       - ingress-nginx                 
-      - kube-node-lease               
       - kube-public                   
       - kube-system                   
       - velero  
     includedResources:
     - '*'
-    excludedResources:
-    - storageclasses.storage.k8s.io
-    - PersistentVolume
-    - PersistentVolumeClaim
-    - VolumeAttachment
     storageLocation: default
     volumeSnapshotLocations:
       - default
