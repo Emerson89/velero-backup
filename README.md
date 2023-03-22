@@ -58,23 +58,46 @@ velero
 ```
 ## Crie credentials file
 
-velero-credentials.txt
+credentials-velero
 ```
 [default]
 aws_access_key_id = {accessKey}
 aws_secret_access_key = {secretKey}
 ```
 
-## Install via helm
+## Install via helm passando o arquivo credentials
+
 ```
 helm repo add vmware-tanzu https://vmware-tanzu.github.io/helm-charts
+```
+Crie uma secret para a credentials
+
+```
+kubectl create secret generic cloud-credentials --namespace velero --from-file=cloud=credentials-velero
 ```
 ```
 helm install velero vmware-tanzu/velero \
 --namespace velero --create-namespace \
---set-file 'credentials.secretContents.cloud=/PATHFULL/velero-credentials.txt' \
+--set 'credentials.existingSecret=cloud-credentials' \
 --set 'configuration.provider=aws' \
---set 'configuration.backupStorageLocation.bucket=s3-name-bucket' \
+--set 'configuration.backupStorageLocation.bucket=S3-NAME-BUCKET' \
+--set 'configuration.backupStorageLocation.config.region=us-east-1' \
+--set 'configuration.volumeSnapshotLocation.name=default' \
+--set 'configuration.volumeSnapshotLocation.config.region=us-east-1' \
+--set 'initContainers[0].name=velero-plugin-for-aws' \
+--set 'initContainers[0].image=velero/velero-plugin-for-aws' \
+--set 'initContainers[0].volumeMounts[0].mountPath=/target' \
+--set 'initContainers[0].volumeMounts[0].name=plugins'
+```
+
+Usando file-credentials
+
+```
+helm install velero vmware-tanzu/velero \
+--namespace velero --create-namespace \
+--set-file 'credentials.secretContents.cloud=/PATHFULL/credentials-velero' \
+--set 'configuration.provider=aws' \
+--set 'configuration.backupStorageLocation.bucket=S3-NAME-BUCKET' \
 --set 'configuration.backupStorageLocation.config.region=us-east-1' \
 --set 'configuration.volumeSnapshotLocation.name=default' \
 --set 'configuration.volumeSnapshotLocation.config.region=us-east-1' \
