@@ -1,0 +1,183 @@
+image:
+  repository: velero/velero
+  tag: v1.11.1
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 128Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+# Init containers to add to the Velero deployment's pod spec. At least one plugin provider image is required.
+# If the value is a string then it is evaluated as a template.
+initContainers:
+  # - name: velero-plugin-for-csi
+  #   image: velero/velero-plugin-for-csi:v0.5.0
+  #   imagePullPolicy: IfNotPresent
+  #   volumeMounts:
+  #     - mountPath: /target
+  #       name: plugins
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.7.0
+  #   imagePullPolicy: IfNotPresent
+    volumeMounts:
+       - mountPath: /target
+         name: plugins
+
+# Settings for Velero's prometheus metrics. Enabled by default.
+metrics:
+  enabled: true
+  scrapeInterval: 30s
+  scrapeTimeout: 10s
+
+  # service metdata if metrics are enabled
+  service:
+    annotations: {}
+    labels: {}
+
+  # Pod annotations for Prometheus
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8085"
+    prometheus.io/path: "/metrics"
+
+  serviceMonitor:
+    autodetect: true
+    enabled: false
+    annotations: {}
+    additionalLabels: {}
+
+    # metrics.serviceMonitor.metricRelabelings Specify Metric Relabelings to add to the scrape endpoint
+    # ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#relabelconfig
+    # metricRelabelings: []
+    # metrics.serviceMonitor.relabelings [array] Prometheus relabeling rules
+    # relabelings: []
+    # ServiceMonitor namespace. Default to Velero namespace.
+    # namespace:
+    # ServiceMonitor connection scheme. Defaults to HTTP.
+    # scheme: ""
+    # ServiceMonitor connection tlsConfig. Defaults to {}.
+    # tlsConfig: {}
+  nodeAgentPodMonitor:
+    autodetect: true
+    enabled: false
+    annotations: {}
+    additionalLabels: {}
+    # ServiceMonitor namespace. Default to Velero namespace.
+    # namespace:
+    # ServiceMonitor connection scheme. Defaults to HTTP.
+    # scheme: ""
+    # ServiceMonitor connection tlsConfig. Defaults to {}.
+    # tlsConfig: {}
+
+  prometheusRule:
+    autodetect: true
+    enabled: false
+    # Additional labels to add to deployed PrometheusRule
+    additionalLabels: {}
+    # PrometheusRule namespace. Defaults to Velero namespace.
+    # namespace: ""
+    # Rules to be deployed
+    spec: []
+    # - alert: VeleroBackupPartialFailures
+    #   annotations:
+    #     message: Velero backup {{ $labels.schedule }} has {{ $value | humanizePercentage }} partialy failed backups.
+    #   expr: |-
+    #     velero_backup_partial_failure_total{schedule!=""} / velero_backup_attempt_total{schedule!=""} > 0.25
+    #   for: 15m
+    #   labels:
+    #     severity: warning
+    # - alert: VeleroBackupFailures
+    #   annotations:
+    #     message: Velero backup {{ $labels.schedule }} has {{ $value | humanizePercentage }} failed backups.
+    #   expr: |-
+    #     velero_backup_failure_total{schedule!=""} / velero_backup_attempt_total{schedule!=""} > 0.25
+    #   for: 15m
+    #   labels:
+    #     severity: warning
+
+##
+## Parameters for the `default` BackupStorageLocation and VolumeSnapshotLocation,
+## and additional server settings.
+##
+configuration:
+  backupStorageLocation:
+  - name:
+    # provider is the name for the backup storage location provider.
+    provider: aws
+    # bucket is the name of the bucket to store backups in. Required.
+    bucket: NAME_BUCKET
+    config:
+      region: us-east-1
+    #  s3ForcePathStyle:
+    #  s3Url:
+    #  kmsKeyId:
+    #  resourceGroup:
+    #  The ID of the subscription containing the storage account, if different from the cluster’s subscription. (Azure only)
+    #  subscriptionId:
+    #  storageAccount:
+    #  publicUrl:
+    #  Name of the GCP service account to use for this backup storage location. Specify the
+    #  service account here if you want to use workload identity instead of providing the key file.(GCP only)
+    #  serviceAccount:
+    #  Option to skip certificate validation or not if insecureSkipTLSVerify is set to be true, the client side should set the
+    #  flag. For Velero client Command like velero backup describe, velero backup logs needs to add the flag --insecure-skip-tls-verify
+    #  insecureSkipTLSVerify:
+
+  # Parameters for the VolumeSnapshotLocation(s). Configure multiple by adding other element(s) to the volumeSnapshotLocation slice.
+  # See https://velero.io/docs/v1.6/api-types/volumesnapshotlocation/
+  volumeSnapshotLocation:
+    # name is the name of the volume snapshot location where snapshots are being taken. Required.
+  - name: default
+    # provider is the name for the volume snapshot provider.
+    provider: aws
+    config: 
+      region: us-east-1
+  #    apiTimeout:
+  #    resourceGroup:
+  #    The ID of the subscription where volume snapshots should be stored, if different from the cluster’s subscription. If specified, also requires `configuration.volumeSnapshotLocation.config.resourceGroup`to be set. (Azure only)
+  #    subscriptionId:
+  #    incremental:
+  #    snapshotLocation:
+  #    project:
+
+# Information about the Kubernetes service account Velero uses.
+serviceAccount:
+  server:
+    create: true
+    name: velero
+    annotations:        
+       eks.amazonaws.com/role-arn: arn-abcabacabc
+    labels:
+
+credentials:
+  # Whether a secret should be used. Set to false if, for examples:
+  # - using kube2iam or kiam to provide AWS IAM credentials instead of providing the key file. (AWS only)
+  # - using workload identity instead of providing the key file. (GCP only)
+  useSecret: false
+  # Name of the secret to create if `useSecret` is true and `existingSecret` is empty
+  name:
+  # Name of a pre-existing secret (if any) in the Velero namespace
+  # that should be used to get IAM account credentials. Optional.
+  existingSecret:
+  # Data to be stored in the Velero secret, if `useSecret` is true and `existingSecret` is empty.
+  # As of the current Velero release, Velero only uses one secret key/value at a time.
+  # The key must be named `cloud`, and the value corresponds to the entire content of your IAM credentials file.
+  # Note that the format will be different for different providers, please check their documentation.
+  # Here is a list of documentation for plugins maintained by the Velero team:
+  # [AWS] https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/main/README.md
+  # [GCP] https://github.com/vmware-tanzu/velero-plugin-for-gcp/blob/main/README.md
+  # [Azure] https://github.com/vmware-tanzu/velero-plugin-for-microsoft-azure/blob/main/README.md
+  secretContents: {}
+  #  cloud: |
+  #    [default]
+  #    aws_access_key_id=<REDACTED>
+  #    aws_secret_access_key=<REDACTED>
+  # additional key/value pairs to be used as environment variables such as "DIGITALOCEAN_TOKEN: <your-key>". Values will be stored in the secret.
+  extraEnvVars: {}
+  # Name of a pre-existing secret (if any) in the Velero namespace
+  # that will be used to load environment variables into velero and node-agent.
+  # Secret should be in format - https://kubernetes.io/docs/concepts/configuration/secret/#use-case-as-container-environment-variables
+  extraSecretRef: ""
